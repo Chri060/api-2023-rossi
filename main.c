@@ -61,7 +61,6 @@ struct station* addStation(struct station* head) {
     struct station *new;
     int km = strtol(end, &end, 10);
     struct station* pointer = head;
-
     if (head == NULL) {
         new = (struct station*) malloc(sizeof(station));
         new->kilometre = km;
@@ -103,7 +102,6 @@ struct station* addStation(struct station* head) {
             }
         }
     }
-
     while (*end != '\n') {
         int autonomy = strtol(end, &end, 10);
         if (new->vehicle == NULL) {
@@ -152,20 +150,69 @@ struct station* addStation(struct station* head) {
 }
 
 
-
-
-
-
-
-
-
-
-
 struct station* removeStation(struct station* head) {
     return head;
 }
 
+
+
+
+
+
+
 struct station* addAuto(struct station* head) {
+    char *end = &string[14];
+    int km = strtol(end, &end, 10);
+    int autonomy = strtol(end, &end, 10);
+    struct station* pointer = head;
+    while (pointer->kilometre != km && pointer->next != NULL) {
+        pointer = pointer->next;
+    }
+    if (pointer->kilometre != km) {
+        fputs("non-aggiunta\n", stdout);
+    }
+    else {
+        if (pointer->vehicle == NULL) {
+            struct vehicle *new1;
+            new1 = (struct vehicle*) malloc(sizeof(vehicle));
+            new1->next = NULL;
+            new1->autonomy = autonomy;
+            pointer->vehicle = new1;
+        }
+        else {
+            struct vehicle* point = pointer->vehicle;
+            while (point->autonomy > autonomy) {
+                if (point->next != NULL) {
+                    if (point->next->autonomy < autonomy) {
+                        break;
+                    }
+                    else {
+                        point = point->next;
+                    }
+                }
+                else break;
+            }
+            struct vehicle *new1;
+            new1 = (struct vehicle*) malloc(sizeof(vehicle));
+            new1->autonomy = autonomy;
+            if (point == pointer->vehicle && point->autonomy < autonomy) {
+                new1->next = pointer->vehicle;
+                pointer->vehicle = new1;
+            }
+            else if(point == pointer->vehicle && point->autonomy >= autonomy) {
+                new1->next = pointer->vehicle->next;
+                pointer->vehicle->next = new1;
+            }
+            else if (point->next == NULL) {
+                point->next = new1;
+                new1->next = NULL;
+            }
+            else {
+                new1->next = point->next;
+                point->next = new1;
+            }
+        }
+    }
     return head;
 }
 
