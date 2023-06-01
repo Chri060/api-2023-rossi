@@ -143,39 +143,44 @@ struct station* removeStation(struct station* head) {
     char *end = &string[19];
     int km = strtol(end, &end, 10);
     struct station* pointer = head;
-    while (pointer->kilometre != km) {
-        if (pointer->next != NULL) pointer = pointer->next;
-        else break;
-    }
-    if (pointer->kilometre != km) fputs("non demolita\n", stdout);
-    else if (pointer->kilometre == km) {
-        struct vehicle *vehicle1;
-        struct vehicle *vehicle2;
-        if (pointer->previous != NULL && pointer->next != NULL) {
-            pointer->previous->next = pointer->next;
-            pointer->next->previous = pointer->previous;
+    if (pointer != NULL) {
+        while (pointer->kilometre != km) {
+            if (pointer->next != NULL) pointer = pointer->next;
+            else break;
         }
-        else if (pointer->previous == NULL && pointer->next == NULL) head = NULL;
-        else if (pointer->previous == NULL) {
-            head = pointer->next;
-            head->previous = NULL;
-        }
-        else if (pointer->next == NULL) pointer->previous->next = NULL;
-        vehicle1 = pointer->vehicle;
-        free(pointer);
-        while (vehicle1 != NULL) {
-            if (vehicle1->next == NULL) {
-                free(vehicle1);
-                break;
+        if (pointer->kilometre != km) fputs("non demolita\n", stdout);
+        else if (pointer->kilometre == km) {
+            struct vehicle *vehicle1;
+            struct vehicle *vehicle2;
+            if (pointer->previous != NULL && pointer->next != NULL) {
+                pointer->previous->next = pointer->next;
+                pointer->next->previous = pointer->previous;
+            } else if (pointer->previous == NULL && pointer->next == NULL) head = NULL;
+            else if (pointer->previous == NULL) {
+                head = pointer->next;
+                head->previous = NULL;
+            } else if (pointer->next == NULL) pointer->previous->next = NULL;
+
+            if (pointer->vehicle == NULL) {
+                fputs("demolita\n", stdout);
+                return head;
             }
-            else {
-                vehicle2 = vehicle1;
-                vehicle1 = vehicle1->next;
-                free(vehicle2);
+            vehicle1 = pointer->vehicle;
+            free(pointer);
+            while (vehicle1 != NULL) {
+                if (vehicle1->next == NULL) {
+                    free(vehicle1);
+                    break;
+                } else {
+                    vehicle2 = vehicle1;
+                    vehicle1 = vehicle1->next;
+                    free(vehicle2);
+                }
             }
+            fputs("demolita\n", stdout);
         }
-        fputs("demolita\n", stdout);
     }
+    else fputs("non demolita\n", stdout);
     return head;
 }
 
@@ -184,6 +189,10 @@ struct station* addAuto(struct station* head) {
     int km = strtol(end, &end, 10);
     int autonomy = strtol(end, &end, 10);
     struct station* pointer = head;
+    if (pointer == NULL) {
+        fputs("non aggiunta\n", stdout);
+        return head;
+    }
     while (pointer->kilometre != km && pointer->next != NULL) pointer = pointer->next;
     if (pointer->kilometre != km) fputs("non aggiunta\n", stdout);
     else {
