@@ -69,7 +69,6 @@ struct station* addStation(struct station* head) {
             if (pointer->next != NULL) pointer = pointer->next;
             else break;
         }
-
         if (pointer->kilometre == km) {
             fputs("non aggiunta\n", stdout);
             return head;
@@ -78,7 +77,7 @@ struct station* addStation(struct station* head) {
             new = (struct station *) malloc(sizeof(station));
             new->kilometre = km;
             new->vehicle = NULL;
-            if (pointer == head) {
+            if (pointer == head && new->kilometre < head->kilometre) {
                 new->previous = NULL;
                 new->next = head;
                 head->previous = new;
@@ -241,19 +240,30 @@ struct station* removeAuto(struct station* head) {
     if (pointer->kilometre != km) fputs("non rottamata\n", stdout);
     else if (pointer->kilometre == km) {
         struct vehicle *vehicle1;
-        struct vehicle *vehicle2;
-        vehicle1 = pointer->vehicle;
-        while (vehicle1->autonomy > autonomy) {
-            if (vehicle1->next != NULL) {
-                vehicle2 = vehicle1;
-                vehicle1 = vehicle1->next;
+        struct vehicle *vehicle2 = NULL;
+        if (pointer->vehicle != NULL) {
+            vehicle1 = pointer->vehicle;
+            while (vehicle1->autonomy > autonomy) {
+                if (vehicle1->next != NULL) {
+                    vehicle2 = vehicle1;
+                    vehicle1 = vehicle1->next;
+                } else break;
             }
-            else break;
-        }
-        if (vehicle1->autonomy == autonomy) {
-            vehicle2->next = vehicle1->next;
-            free(vehicle1);
-            fputs("rottamata\n", stdout);
+            if (vehicle1->autonomy == autonomy) {
+                if (pointer->vehicle == vehicle1) {
+                    pointer->vehicle = vehicle1->next;
+                    free(vehicle1);
+                }
+                else if (vehicle1->next == NULL) {
+                    vehicle2->next = NULL;
+                    free(vehicle1);
+                }
+                else {
+                    vehicle2->next = vehicle1->next;
+                    free(vehicle1);
+                }
+                fputs("rottamata\n", stdout);
+            } else fputs("non rottamata\n", stdout);
         }
         else fputs("non rottamata\n", stdout);
     }
@@ -316,7 +326,9 @@ void planPath(struct station* head) {
                             if (search->list[2] != NULL) search = search->list[2];
                             else break;
                         }
-                        if (stations[i - 1] - start <= headList->array[1] && stations[0] == arrive) {
+                        search = headList;
+                        while (search->array[0] != stations[i - 1]) search = search->list[0];
+                        if (stations[i - 1] - start <= search->array[1] && stations[0] == arrive) {
                             printf("%i ", start);
                             for (int k = i - 1; k != 0; k--) printf("%i ", stations[k]);
                             printf("%i\n", arrive);
@@ -400,7 +412,9 @@ void planPath(struct station* head) {
                             if (search->list[2] != NULL) search = search->list[2];
                             else break;
                         }
-                        if (stations[i - 1] - arrive <= headList->list[0]->array[1] && stations[0] == start) {
+                        search = headList;
+                        while (search->array[0] != stations[i - 1]) search = search->list[0];
+                        if (stations[i - 1] - arrive <= search->array[1] && stations[0] == start) {
                             printf("%i ", start);
                             for (int k = 1; k != i; k++) printf("%i ", stations[k]);
                             printf("%i\n", arrive);
