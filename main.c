@@ -56,7 +56,7 @@ struct station* addStation(struct station* head) {
     int km = strtol(end, &end, 10);
     struct station *new;
     struct station* pointer = head;
-    struct station* pointerPrev;
+    struct station* pointerPrev = NULL;
     if (head == NULL) {
         new = (struct station*) malloc(sizeof(station));
         new->km = km;
