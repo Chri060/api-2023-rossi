@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char string[255];
+char string[11000];
 
 struct station {
     int km;
     struct vehicle* vehicle;
+    struct station* pre;
     struct station* next;
 } station;
 
@@ -21,51 +22,60 @@ struct searchNode {
     struct searchNode* prev;
 } searchNode;
 
-struct station* addStation(struct station* head);
-struct station* removeStation(struct station* head);
-struct station* addAuto(struct station* head);
-struct station* removeAuto(struct station* head);
-void planPath(struct station* head);
+struct station* list = NULL;
+
+void addStation();
+void removeStation();
+void addAuto();
+void removeAuto();
+void planPath();
+void memoryCleaner(struct searchNode *searchHead);
+//void stampa();
 
 int main() {
-    struct station* list = NULL;
-    while (fgets(string,255,stdin) != NULL) {
+    while (fgets(string,11000,stdin) != NULL) {
         switch (string[12]) {
             case 'z':
-                list = addStation(list);
+                addStation();
                 break;
             case 'a':
-                list = removeStation(list);
+                removeStation();
                 break;
             case 'o':
-                list = addAuto(list);
+                addAuto();
                 break;
             case ' ':
-                list = removeAuto(list);
+                removeAuto();
                 break;
             case 'r':
-                planPath(list);
+                planPath();
                 break;
         }
     }
+    fflush(stdout);
     return 0;
 }
 
-struct station* addStation(struct station* head) {
+void addStation() {
     char *end = &string[18];
     int km = strtol(end, &end, 10);
     struct station *new;
-    struct station* pointer = head;
-    struct station* pointerPrev = NULL;
-    if (head == NULL) {
-        new = (struct station*) malloc(sizeof(station));
+    new = (struct station*) malloc(sizeof(station));
+    if (list == NULL) {
         new->km = km;
         new->next = NULL;
         new->vehicle = NULL;
-        head = new;
+        new->pre = NULL;
+        list = new;
         fputs("aggiunta\n", stdout);
     }
     else {
+        struct station* pointer = list;
+        struct station* pointerPrev = NULL;
+        new->km = km;
+        new->vehicle = NULL;
+        new->next = NULL;
+        new->pre = NULL;
         while (pointer->km < km) {
             if (pointer->next != NULL) {
                 pointerPrev = pointer;
@@ -74,33 +84,41 @@ struct station* addStation(struct station* head) {
             else break;
         }
         if (pointer->km == km) {
+            free(new);
             fputs("non aggiunta\n", stdout);
-            return head;
+            return;
         }
         else {
-            new = (struct station *) malloc(sizeof(station));
-            new->km = km;
-            new->vehicle = NULL;
-            if (pointer == head && new->km < head->km) {
-                new->next = head;
-                head = new;
+            if (pointer == list && list->km > km) {
+                new->next = list;
+                new->pre = NULL;
+                list->pre = new;
+                list = new;
             }
-            else if (pointer->next == NULL) {
+            else if (pointer == list && list->km < km) {
+                new->pre = pointer;
                 pointer->next = new;
                 new->next = NULL;
             }
-            else {
-                pointerPrev->next = new;
+            else if (pointer->km > km) {
                 new->next = pointer;
+                pointer->pre = new;
+                pointerPrev->next = new;
+                new->pre = pointerPrev;
+            }
+            else if (pointer->km < km){
+                new->next = pointer->next;
+                pointer->next = new;
+                pointer->next->pre = new;
+                new->pre = pointer;
             }
             fputs("aggiunta\n", stdout);
         }
     }
     while (*end != '\n') {
         int autonomy = strtol(end, &end, 10);
+        struct vehicle *new1 = (struct vehicle*) malloc(sizeof(vehicle));
         if (new->vehicle == NULL) {
-            struct vehicle *new1;
-            new1 = (struct vehicle*) malloc(sizeof(vehicle));
             new1->next = NULL;
             new1->autonomy = autonomy;
             new->vehicle = new1;
@@ -114,8 +132,6 @@ struct station* addStation(struct station* head) {
                 }
                 else break;
             }
-            struct vehicle *new1;
-            new1 = (struct vehicle*) malloc(sizeof(vehicle));
             new1->autonomy = autonomy;
             if (point == new->vehicle && point->autonomy < autonomy) {
                 new1->next = new->vehicle;
@@ -135,17 +151,16 @@ struct station* addStation(struct station* head) {
             }
         }
     }
-    return head;
 }
 
-struct station* removeStation(struct station* head) {
+void removeStation() {
     char *end = &string[19];
     int km = strtol(end, &end, 10);
-    struct station* pointer = head;
+    struct station* pointer = list;
     struct station* pointerPrev = NULL;
     if (pointer == NULL) {
         fputs("non demolita\n", stdout);
-        return head;
+        return;
     }
     while (pointer->km != km) {
         if (pointer->next != NULL) {
@@ -156,51 +171,52 @@ struct station* removeStation(struct station* head) {
     }
     if (pointer->km != km) fputs("non demolita\n", stdout);
     else if (pointer->km == km) {
-        struct vehicle *vehicle1;
-        struct vehicle *vehicle2;
         if (pointerPrev != NULL && pointer->next != NULL) {
             pointerPrev->next = pointer->next;
-        } else if (pointerPrev == NULL && pointer->next == NULL) head = NULL;
-        else if (pointerPrev == NULL) {
-            head = pointer->next;
-        } else if (pointer->next == NULL) pointerPrev->next = NULL;
+        } else if (pointerPrev == NULL && pointer->next == NULL) list = NULL;
+        else if (pointerPrev == NULL) list = pointer->next;
+        else if (pointer->next == NULL) pointerPrev->next = NULL;
 
         if (pointer->vehicle == NULL) {
             fputs("demolita\n", stdout);
-            return head;
+            free(pointer);
+            return;
         }
-        vehicle1 = pointer->vehicle;
-        free(pointer);
-        while (vehicle1 != NULL) {
-            if (vehicle1->next == NULL) {
-                free(vehicle1);
-                break;
-            } else {
-                vehicle2 = vehicle1;
-                vehicle1 = vehicle1->next;
-                free(vehicle2);
+        else {
+            struct vehicle *vehicle1;
+            struct vehicle *vehicle2 = NULL;
+            vehicle1 = pointer->vehicle;
+            free(pointer);
+            while (vehicle1 != NULL) {
+                if (vehicle1->next == NULL) {
+                    free(vehicle1);
+                    break;
+                } else {
+                    vehicle2 = vehicle1;
+                    vehicle1 = vehicle1->next;
+                    free(vehicle2);
+                }
             }
+            fputs("demolita\n", stdout);
         }
-        fputs("demolita\n", stdout);
     }
-    return head;
 }
 
-struct station* addAuto(struct station* head) {
+void addAuto() {
     char *end = &string[14];
     int km = strtol(end, &end, 10);
     int autonomy = strtol(end, &end, 10);
-    struct station* pointer = head;
+    struct station* pointer = list;
     if (pointer == NULL) {
         fputs("non aggiunta\n", stdout);
-        return head;
+        return;
     }
     while (pointer->km != km && pointer->next != NULL) pointer = pointer->next;
     if (pointer->km != km) fputs("non aggiunta\n", stdout);
     else {
+        struct vehicle *new1;
+        new1 = (struct vehicle*) malloc(sizeof(vehicle));
         if (pointer->vehicle == NULL) {
-            struct vehicle *new1;
-            new1 = (struct vehicle*) malloc(sizeof(vehicle));
             new1->next = NULL;
             new1->autonomy = autonomy;
             pointer->vehicle = new1;
@@ -214,8 +230,6 @@ struct station* addAuto(struct station* head) {
                 }
                 else break;
             }
-            struct vehicle *new1;
-            new1 = (struct vehicle*) malloc(sizeof(vehicle));
             new1->autonomy = autonomy;
             if (point == pointer->vehicle && point->autonomy < autonomy) {
                 new1->next = pointer->vehicle;
@@ -236,14 +250,13 @@ struct station* addAuto(struct station* head) {
         }
         fputs("aggiunta\n", stdout);
     }
-    return head;
 }
 
-struct station* removeAuto(struct station* head) {
+void removeAuto() {
     char *end = &string[13];
     int km = strtol(end, &end, 10);
     int autonomy = strtol(end, &end, 10);
-    struct station* pointer = head;
+    struct station* pointer = list;
     while (pointer->km != km) {
         if (pointer->next != NULL) pointer = pointer->next;
         else break;
@@ -278,173 +291,152 @@ struct station* removeAuto(struct station* head) {
         }
         else fputs("non rottamata\n", stdout);
     }
-    return head;
 }
 
-void planPath(struct station* head) {
+void planPath() {
     char *end = &string[19];
     int start = strtol(end, &end, 10);
     int arrive = strtol(end, &end, 10);
-    int distance = abs(start - arrive);
     if (start == arrive) fprintf(stdout, "%i\n", start);
     else if (start < arrive) {
-        struct station *pointer = head;
+        struct station *pointer = list;
         while (pointer->km != start) pointer = pointer->next;
-        if (pointer->vehicle->autonomy >= distance) {
+        if (pointer->vehicle->autonomy >= arrive - start) {
             fprintf(stdout, "%i %i\n", start, arrive);
             return;
-        }
-        else {
+        } else {
             struct searchNode *headList;
             headList = (struct searchNode *) malloc(sizeof(searchNode));
             headList->km = pointer->km;
             headList->autonomy = pointer->vehicle->autonomy;
             headList->next = NULL;
             headList->prev = NULL;
-            pointer = pointer->next;
+            struct searchNode *node = headList;
             struct searchNode *actualNode = headList;
+            struct searchNode *newNode;
+            pointer = pointer->next;
             while (pointer->km <= arrive) {
-                struct searchNode *newNode;
-                newNode = (struct searchNode *) malloc(sizeof(searchNode));
-                newNode->km = pointer->km;
-                newNode->autonomy = pointer->vehicle->autonomy;
-                newNode->next = NULL;
-                newNode->prev = NULL;
-                actualNode->next = newNode;
-                actualNode = newNode;
-                if (pointer->next != NULL) pointer = pointer->next;
-                else break;
-            }
-            actualNode = headList;
-            struct searchNode *successiveNode;
-            while (actualNode->km <= arrive) {
-                successiveNode = actualNode->next;
-                while (actualNode->autonomy >= (successiveNode->km - actualNode->km)) {
-                    if (successiveNode->prev == NULL) {
-                        successiveNode->prev = actualNode;
+                if (pointer->km - actualNode->km <= actualNode->autonomy) {
+                    newNode = (struct searchNode *) malloc(sizeof(searchNode));
+                    newNode->km = pointer->km;
+                    newNode->autonomy = pointer->vehicle->autonomy;
+                    newNode->next = NULL;
+                    newNode->prev = actualNode;
+                    node->next = newNode;
+                    node = newNode;
+                    pointer = pointer->next;
+                }
+                else {
+                    if (actualNode->next != NULL) actualNode = actualNode->next;
+                    else break;
+                }
+                if (node->km == arrive) {
+                    int stations[200], i;
+                    struct searchNode* search = node;
+                    for (i = 0; search->prev != NULL; i++) {
+                        stations[i] = search->km;
+                        search = search->prev;
                     }
-                    if (successiveNode->km == arrive) {
-                        int i = 0;
-                        int stations[200];
-                        struct searchNode* search = successiveNode;
-                        while (search->km != start) {
+                    if (search->km == start) {
+                        printf("%i ", start);
+                        for (int k = i - 1; k != 0; k--) printf("%i ", stations[k]);
+                        printf("%i\n", arrive);
+                        memoryCleaner(headList);
+                        return;
+                    }
+                }
+            }
+            fputs("nessun percorso\n", stdout);
+            memoryCleaner(headList);
+            return;
+        }
+    } else if (start > arrive){
+        struct station *pointer = list;
+        while (pointer->km != start) pointer = pointer->next;
+        if (pointer->vehicle->autonomy >= start - arrive) {
+            fprintf(stdout, "%i %i\n", start, arrive);
+            return;
+        } else {
+            struct searchNode *headList;
+            headList = (struct searchNode *) malloc(sizeof(searchNode));
+            headList->km = pointer->km;
+            headList->autonomy = pointer->vehicle->autonomy;
+            headList->next = NULL;
+            headList->prev = NULL;
+            struct searchNode *node = headList;
+            struct searchNode *actualNode = headList;
+            struct searchNode *newNode;
+            struct station *rewindNode;
+            while (pointer->km >= arrive) {
+                rewindNode = pointer;
+                while (actualNode->km - rewindNode->km <= actualNode->autonomy && rewindNode->km != arrive) rewindNode = rewindNode->pre;
+                if (actualNode->km - rewindNode->km > actualNode->autonomy) {
+                    rewindNode = rewindNode->next;
+                }
+                struct station* save = rewindNode;
+                while (rewindNode != pointer) {
+                    newNode = (struct searchNode *) malloc(sizeof(searchNode));
+                    newNode->km = rewindNode->km;
+                    newNode->autonomy = rewindNode->vehicle->autonomy;
+                    newNode->next = NULL;
+                    newNode->prev = actualNode;
+                    node->next = newNode;
+                    node = newNode;
+                    if (rewindNode->next != NULL) rewindNode = rewindNode->next;
+                    else break;
+                    if (node->km == arrive) {
+                        int stations[200], i;
+                        struct searchNode* search = node;
+                        for (i = 0; search->prev != NULL; i++) {
                             stations[i] = search->km;
-                            i++;
-                            if (search->prev != NULL) search = search->prev;
-                            else break;
+                            search = search->prev;
                         }
-                        search = headList;
-                        if (stations[i - 1] - start <= headList->autonomy && stations[0] == arrive) {
+                        if (search->km == start) {
                             printf("%i ", start);
                             for (int k = i - 1; k != 0; k--) printf("%i ", stations[k]);
                             printf("%i\n", arrive);
+                            memoryCleaner(headList);
                             return;
                         }
                     }
-                    if (successiveNode->next != NULL) successiveNode = successiveNode->next;
-                    else break;
+
                 }
-                if (actualNode->next != NULL) {
-                    actualNode = actualNode->next;
-                    if (actualNode->next != NULL) successiveNode = actualNode->next;
-                    else break;
-                }
+                pointer = save;
+                if (actualNode->next != NULL) actualNode = actualNode->next;
                 else break;
             }
             fputs("nessun percorso\n", stdout);
-            while (headList != NULL) {
-                successiveNode = headList;
-                if (headList->next != NULL) {
-                    headList = headList->next;
-                    free(successiveNode);
-                }
-                else {
-                    free(headList);
-                    break;
-                }
-            }
-            return;
-        }
-    }
-    else {
-        struct station *pointer = head;
-        while (pointer->km != arrive) pointer = pointer->next;
-        struct station* goal = head;
-        while (goal->km != start) goal = goal->next;
-        if (goal->km - pointer->km <= goal->vehicle->autonomy) {
-            fprintf(stdout, "%i %i\n", start, arrive);
-            return;
-        }
-        else {
-            struct searchNode *headList;
-            headList = (struct searchNode *) malloc(sizeof(searchNode));
-            headList->km = pointer->km;
-            headList->autonomy = pointer->vehicle->autonomy;
-            headList->next = NULL;
-            headList->prev = NULL;
-            pointer = pointer->next;
-            struct searchNode *actualNode = headList;
-            while (pointer->km <= start) {
-                struct searchNode *newNode;
-                newNode = (struct searchNode *) malloc(sizeof(searchNode));
-                newNode->km = pointer->km;
-                newNode->autonomy = pointer->vehicle->autonomy;
-                newNode->next = NULL;
-                newNode->prev = NULL;
-                actualNode->next = newNode;
-                actualNode = newNode;
-                if (pointer->next != NULL) pointer = pointer->next;
-                else break;
-            }
-            actualNode = headList;
-            struct searchNode *successiveNode = actualNode->next;
-            while (actualNode->km <= start) {
-                successiveNode = actualNode->next;
-                while (successiveNode->autonomy >= (successiveNode->km - actualNode->km)) {
-                    if (successiveNode->prev == NULL) {
-                        successiveNode->prev = actualNode;
-                    }
-                    if (successiveNode->km == start) {
-                        int i = 0;
-                        int stations[200];
-                        struct searchNode* search = successiveNode;
-                        while (search->km != arrive) {
-                            stations[i] = search->km;
-                            i++;
-                            if (search->prev != NULL) search = search->prev;
-                            else break;
-                        }
-                        search = headList;
-                        while (search->km != stations[i - 1]) search = search->next;
-                        if (stations[i - 1] - arrive <= search->autonomy && stations[0] == start) {
-                            printf("%i ", start);
-                            for (int k = 1; k != i; k++) printf("%i ", stations[k]);
-                            printf("%i\n", arrive);
-                            return;
-                        }
-                    }
-                    if (successiveNode->next != NULL) successiveNode = successiveNode->next;
-                    else break;
-                }
-                if (actualNode->next != NULL && actualNode->next->next != NULL) {
-                    actualNode = actualNode->next;
-                    successiveNode = actualNode->next;
-                }
-                else break;
-            }
-            fputs("nessun percorso\n", stdout);
-            while (headList != NULL) {
-                successiveNode = headList;
-                if (headList->next != NULL) {
-                    headList = headList->next;
-                    free(successiveNode);
-                }
-                else {
-                    free(headList);
-                    break;
-                }
-            }
+            memoryCleaner(headList);
             return;
         }
     }
 }
+
+void memoryCleaner(struct searchNode *searchHead) {
+    struct searchNode *node = NULL;
+    while (searchHead != NULL) {
+        node = searchHead;
+        if (searchHead->next != NULL) {
+            searchHead = searchHead->next;
+            free(node);
+        }
+        else {
+            free(searchHead);
+            break;
+        }
+    }
+}
+/*
+void stampa() {
+    struct station *li;
+    li = list;
+    while (1) {
+        if (li->vehicle != NULL) {
+            printf("%i %i\n", li->km, li->vehicle->autonomy);
+        }
+        else printf("%i\n", li->km);
+        if (li->next != NULL) li = li->next;
+        else break;
+    }
+}
+ */
