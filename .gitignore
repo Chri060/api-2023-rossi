@@ -5,6 +5,9 @@
 .idea/**/dictionaries
 .idea/**/shelf
 
+*/.DS_store
+.DS_store
+
 # AWS User-specific
 .idea/**/aws.xml
 
