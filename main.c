@@ -1,382 +1,445 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 typedef struct station {
-    int km;
-    struct vehicle* vehicle;
-    struct station* pre;
-    struct station* next;
-} station;
+    struct station *prev;
+    struct station *next;
+    unsigned int pos;
+    unsigned int *cars;
+    unsigned int cars_size;
+} Station;
 
-typedef struct vehicle {
-    int autonomy;
-    struct vehicle* next;
-} vehicle ;
+typedef struct hop {
+    struct hop *prev;
+    struct hop *lat_l;
+    struct hop *lat_r;
+    Station *station;
+} Hop;
 
-typedef struct searchNode {
-    int km;
-    int autonomy;
-    struct searchNode* next;
-} searchNode;
+typedef struct {
+    unsigned int *stations;
+    unsigned int len;
+} Path;
 
-typedef struct bfsNode {
-    int km;
-    int autonomy;
-    int iteration;
-    struct bfsNode* next;
-    struct bfsNode* pre;
-} bfsNode;
+Station *stations_list_start = NULL;
+Station *stations_list_end = NULL;
 
-station* list;
+// function declarations
+bool add_station(unsigned int pos, unsigned int *cars, unsigned int cars_size);
 
-void addStation();
-void removeStation();
-void addAuto();
-void removeAuto();
-void planPath();
+bool del_station(unsigned int pos);
+
+bool add_car(unsigned int pos, unsigned int limit);
+
+bool del_car(unsigned int pos, unsigned int limit);
+
+int comp_cars(const void *a, const void *b);
+
+Path get_forward_path(unsigned int start, unsigned int end);
+
+Path get_backward_path(unsigned int start, unsigned int end);
+
+void cleanup_hops(Hop *base);
 
 int main() {
-    char string[532];
-    //freopen("/Users/christianrossi/Documents/UTM/API/open_testcases/open_9.txt","r",stdin);
-    while (fgetc(stdin) != EOF) {
-        if (!scanf("%s", string)) return -1;
-        switch (string[11]) {
-            case 'z':
-                addStation();
-                fgetc(stdin);
-                break;
-            case 'a':
-                removeStation();
-                fgetc(stdin);
-                break;
-            case 'o':
-                addAuto();
-                fgetc(stdin);
-                break;
-            case 'r':
-                planPath();
-                fgetc(stdin);
-                break;
-            default:
-                removeAuto();
-                fgetc(stdin);
-                break;
-        }
-    }
-    fflush(stdout);
-    return 0;
-}
-
-void addStation() {
-    bool added = true;
-    int km;
-    if (!scanf("%i", &km)) return;
-    station *stationPointer = list;
-    station *newStation = (station *) malloc(sizeof(station));
-    newStation->km = km;
-    newStation->vehicle = NULL;
-    newStation->pre = NULL;
-    newStation->next = NULL;
-    if (list == NULL) list = newStation;
-    else if (newStation->km < stationPointer->km) {
-        newStation->next = list;
-        list->pre = newStation;
-        list = newStation;
-    } else {
-        while (stationPointer->next != NULL && stationPointer->next->km <= newStation->km) stationPointer = stationPointer->next;
-        if (stationPointer->km == newStation->km) added = false;
-        else {
-            if (stationPointer->next != NULL) {
-                stationPointer->next->pre = newStation;
-                newStation->next = stationPointer->next;
-            }
-            stationPointer->next = newStation;
-            newStation->pre = stationPointer;
-        }
-    }
-    if (added == true) {
-        int length, autonomy;
-        if (!scanf("%i", &length)) return;
-        for (int i = 0; i < length; i++) {
-            if (!scanf("%i", &autonomy)) return;
-            vehicle* vehiclePointer = newStation->vehicle;
-            vehicle* newVehicle = malloc(sizeof(vehicle));
-            newVehicle->autonomy = autonomy;
-            newVehicle->next = NULL;
-            if (newStation->vehicle == NULL) newStation->vehicle = newVehicle;
-            else if (newStation->vehicle->autonomy < newVehicle->autonomy) {
-                newVehicle->next = newStation->vehicle;
-                newStation->vehicle = newVehicle;
-            } else {
-                while (vehiclePointer->next != NULL && vehiclePointer->next->autonomy > newVehicle->autonomy) vehiclePointer = vehiclePointer->next;
-                if (vehiclePointer->next != NULL) newVehicle->next = vehiclePointer->next;
-                vehiclePointer->next = newVehicle;
-            }
-        }
-    }
-    else {
-        int length, autonomy;
-        if (!scanf("%i", &length)) return;
-        for (int i = 0; i < length; i++) {
-            if (!scanf("%i", &autonomy)) return;
-        }
-    }
-    if (added == false) {
-        free(newStation);
-        fputs("non aggiunta\n", stdout);
-    }
-    else fputs("aggiunta\n", stdout);
-}
-
-void removeStation() {
-    int km;
-    if (!scanf("%i", &km)) return;
-    if (list == NULL) {
-        fputs("non demolita\n", stdout);
-        return;
-    }
-    station *previousStation = NULL, *currentStation = NULL, *nextStation = NULL;
-    currentStation = list;
-    nextStation = currentStation->next;
-    while (currentStation->km < km && nextStation != NULL) {
-        previousStation = currentStation;
-        currentStation = nextStation;
-        nextStation = nextStation->next;
-    }
-    if (currentStation->km != km) {
-        fputs("non demolita\n", stdout);
-        return;
-    }
-    if (previousStation != NULL) previousStation->next = nextStation;
-    else list = nextStation;
-    if (nextStation != NULL) nextStation->pre = previousStation;
-    vehicle *toDemolish;
-    vehicle *nextInLine = currentStation->vehicle;
-    while (nextInLine != NULL) {
-        toDemolish = nextInLine;
-        nextInLine = nextInLine->next;
-        free(toDemolish);
-    }
-    free(currentStation);
-    fputs("demolita\n", stdout);
-}
-
-void addAuto() {
-    int km, autonomy;
-    if (!scanf("%i", &km)) return;
-    if (!scanf("%i", &autonomy)) return;
-    station* stationPointer = list;
-    while (stationPointer->next != NULL && stationPointer->next->km <= km) stationPointer = stationPointer->next;
-    if (stationPointer->km == km){
-        vehicle* vehiclePointer = stationPointer->vehicle;
-        vehicle* newVehicle = malloc(sizeof(vehicle));
-        newVehicle->autonomy = autonomy;
-        newVehicle->next = NULL;
-        if (stationPointer->vehicle == NULL) stationPointer->vehicle = newVehicle;
-        else if (stationPointer->vehicle->autonomy < newVehicle->autonomy) {
-            newVehicle->next = stationPointer->vehicle;
-            stationPointer->vehicle = newVehicle;
-        } else {
-            while (vehiclePointer->next != NULL && vehiclePointer->next->autonomy > newVehicle->autonomy) vehiclePointer = vehiclePointer->next;
-            if (vehiclePointer->next != NULL) newVehicle->next = vehiclePointer->next;
-            vehiclePointer->next = newVehicle;
-        }
-        fputs("aggiunta\n", stdout);
-    }
-    else fputs("non aggiunta\n", stdout);
-}
-
-void removeAuto() {
-    int km, autonomy;
-    bool removed = false;
-    if (!scanf("%i", &km)) return;
-    if (!scanf("%i", &autonomy)) return;
-    station* stationPointer = list;
-    while (stationPointer->next != NULL && stationPointer->next->km <= km) stationPointer = stationPointer->next;
-    if (stationPointer->km == km){
-        vehicle* vehiclePointer = stationPointer->vehicle;
-        if (stationPointer->vehicle->autonomy == autonomy) {
-            stationPointer->vehicle = vehiclePointer->next;
-            free(vehiclePointer);
-            removed = true;
-        }
-        else {
-            while (vehiclePointer->next != NULL && vehiclePointer->next->autonomy > autonomy) vehiclePointer = vehiclePointer->next;
-            if (vehiclePointer->next != NULL && vehiclePointer->next->autonomy == autonomy) {
-                vehicle* toFree = vehiclePointer->next;
-                vehiclePointer->next = vehiclePointer->next->next;
-                free(toFree);
-                removed = true;
-            }
-        }
-    }
-    if (removed == false) fputs("non rottamata\n", stdout);
-    else fputs("rottamata\n", stdout);
-}
-
-void planPath() {
-    int start, arrive;
-    if (!scanf("%i", &start)) return;
-    if (!scanf("%i", &arrive)) return;
-    if (start == arrive) {
-        printf("%i\n", start);
-        return;
-    }
-    else if (start > arrive) {
-        station* pointer = list;
-        while (pointer->km != arrive) {
-            pointer = pointer->next;
-        }
-        if (pointer->vehicle->autonomy >= start - arrive) {
-            printf("%i %i\n", start, arrive);
-            return;
-        }
-        while (pointer->km != start) {
-            pointer = pointer->next;
-        }
-        bfsNode * headNode = malloc(sizeof(bfsNode));
-        headNode->km = pointer->km;
-        headNode->autonomy = pointer->vehicle->autonomy;
-        headNode->iteration = 0;
-        headNode->pre = NULL;
-        headNode->next = NULL;
-        bfsNode* activeNode = headNode;
-        bfsNode* actualPosition = headNode;
-        bfsNode* rewindNode = headNode;
-        pointer = pointer->pre;
-        int iteration = 0;
-        bool found = false;
-        while (1) {
-            while (activeNode->km - pointer->km <= activeNode->autonomy) {
-                bfsNode * newNode = malloc(sizeof(bfsNode));
-                newNode->km = pointer->km;
-                newNode->iteration = activeNode->iteration + 1;
-                newNode->autonomy = pointer->vehicle->autonomy;
-                newNode->pre = activeNode;
-                newNode->next = NULL;
-                if (rewindNode->next == NULL) {
-                    actualPosition->next = newNode;
-                    actualPosition = newNode;
+    // listen to the command and dispatch appropriate functions
+    char command[19];
+    while (!feof(stdin)) {
+        if (scanf("%s", command) == EOF)
+            return 0;
+        switch (command[12]) {
+            case 'z': { // aggiungi stazione
+                unsigned int pos, cars_size;
+                unsigned int *cars = malloc(sizeof(int) * 512);
+                if (scanf("%d", &pos) == EOF)
+                    return -1;
+                if (scanf("%d", &cars_size) == EOF)
+                    return -1;
+                for (unsigned int i = 0; i < cars_size; i++) {
+                    if (scanf("%d", &cars[i]) == EOF)
+                        return -1;
                 }
-                else if (newNode->km < rewindNode->next->km) {
-                    newNode->next = rewindNode->next;
-                    rewindNode->next = newNode;
+                qsort(cars, cars_size, sizeof(int), comp_cars);
+                if (add_station(pos, cars, cars_size)) {
+                    printf("aggiunta\n");
+                } else {
+                    free(cars);
+                    printf("non aggiunta\n");
                 }
-                else {
-                    bfsNode* treePointer = rewindNode;
-                    while (treePointer->next != NULL && treePointer->next->km && treePointer->next->iteration == newNode->iteration) treePointer = treePointer->next;
-                    if (treePointer->next == NULL) treePointer->next = newNode;
-                    else {
-                        newNode->next = treePointer->next;
-                        treePointer->next = newNode;
+
+                break;
+            }
+            case 'a': { // demolisci stazione
+                unsigned int pos;
+                if (scanf("%d", &pos) == EOF)
+                    return -1;
+                if (del_station(pos)) {
+                    printf("demolita\n");
+                } else {
+                    printf("non demolita\n");
+                }
+                break;
+            }
+            case 'o': { // aggiungi auto
+                unsigned int pos, limit;
+                if (scanf("%d", &pos) == EOF)
+                    return -1;
+                if (scanf("%d", &limit) == EOF)
+                    return -1;
+                if (add_car(pos, limit)) {
+                    printf("aggiunta\n");
+                } else {
+                    printf("non aggiunta\n");
+                }
+                break;
+            }
+            case '\0': { // rottama auto
+                unsigned int pos, limit;
+                if (scanf("%d", &pos) == EOF)
+                    return -1;
+                if (scanf("%d", &limit) == EOF)
+                    return -1;
+                if (del_car(pos, limit)) {
+                    printf("rottamata\n");
+                } else {
+                    printf("non rottamata\n");
+                }
+                break;
+            }
+            case 'r': { // pianifica percorso
+                unsigned int start, end;
+                if (scanf("%d %d", &start, &end) == EOF)
+                    return -1;
+                Path path;
+                if (end > start) {
+                    path = get_forward_path(start, end);
+                } else if (end < start) {
+                    path = get_backward_path(start, end);
+                } else {
+                    printf("%d\n", start);
+                    break;
+                }
+                if (path.stations == NULL) {
+                    printf("nessun percorso\n");
+                } else {
+                    for (unsigned int i = 0; i < path.len; i++) {
+                        printf("%d", path.stations[i]);
+                        if (i < path.len - 1)
+                            fputc(' ', stdout);
                     }
+                    printf("\n");
+                    free(path.stations);
                 }
-                if (newNode->km == arrive) {
-                    found = true;
-                    activeNode = newNode;
-                    break;
-                }
-                pointer = pointer->pre;
-            }
-            if (found == true) break;
-            if (activeNode->next != NULL) activeNode = activeNode->next;
-            else break;
-            if (activeNode->iteration > iteration) {
-                iteration = activeNode->iteration;
-                rewindNode = actualPosition;
-            }
-        }
-        if (found == true) {
-            int array[364];
-            int i = 0;
-            while (1) {
-                array[i] = activeNode->km;
-                if (activeNode->pre != NULL) activeNode = activeNode->pre;
-                else break;
-                i++;
-            }
-            while (1) {
-                printf("%i ", array[i]);
-                i--;
-                if (i == 0) break;
-            }
-            printf("%i\n", array[0]);
-        }
-        else fputs("nessun percorso\n", stdout);
-        bfsNode* prev;
-        while (1) {
-            prev = headNode;
-            if (headNode->next != NULL) headNode = headNode->next;
-            else {
-                free(headNode);
                 break;
             }
-            free (prev);
+        }
+        if (fgetc(stdin) != '\n')
+            return -1;
+    }
+}
+
+int comp_cars(const void *a, const void *b) { return *((long *) b) - *((long *) a); }
+
+bool add_station(unsigned int pos, unsigned int *cars, unsigned int cars_size) {
+    Station *next = stations_list_start;
+    Station *prev = NULL;
+    Station *this = malloc(sizeof(Station));
+    this->pos = pos;
+    this->cars = cars;
+    this->cars_size = cars_size;
+
+    while (next != NULL && next->pos < pos) {
+        prev = next;
+        next = next->next;
+    }
+    this->next = next;
+    this->prev = prev;
+
+    if (next != NULL && next->pos == this->pos) {
+        free(this);
+        return false;
+    }
+
+    if (prev == NULL)
+        stations_list_start = this;
+    else {
+        prev->next = this;
+    }
+    if (next == NULL) {
+        stations_list_end = this;
+    } else {
+        next->prev = this;
+    }
+    return true;
+}
+
+bool del_station(unsigned int pos) {
+    // find the station
+    Station *this = stations_list_start;
+    while (this != NULL && this->pos < pos) {
+        this = this->next;
+    }
+
+    // if at the right station, delete it
+    if (this != NULL && this->pos == pos) {
+        if (this->prev != NULL) {
+            this->prev->next = this->next;
+        } else {
+            stations_list_start = this->next;
+        }
+        if (this->next != NULL) {
+            this->next->prev = this->prev;
+        } else {
+            stations_list_end = this->prev;
+        }
+        free(this->cars);
+        free(this);
+        return true;
+    }
+
+    return false;
+}
+
+bool add_car(unsigned int pos, unsigned int limit) {
+    // find the station
+    Station *this = stations_list_start;
+    while (this->pos < pos && this->next != NULL)
+        this = this->next;
+    if (this->pos != pos)
+        return false;
+
+    // check if station has room
+    if (this->cars_size == 512) {
+        return false;
+    }
+
+    // add car and limit to the station
+    unsigned int curr_max = this->cars_size > 0 ? this->cars[0] : limit;
+    this->cars[0] = limit > curr_max ? limit : curr_max;
+    this->cars[this->cars_size++] = limit > curr_max ? curr_max : limit;
+    return true;
+}
+
+bool del_car(unsigned int pos, unsigned int limit) {
+    // find the station
+    Station *this = stations_list_start;
+    while (this->pos < pos && this->next != NULL)
+        this = this->next;
+    if (this->pos != pos)
+        return false;
+
+    // look for the car to delete and remove it
+    unsigned int i = 0;
+    bool removed = false;
+    for (; i < this->cars_size; i++) {
+        if (this->cars[i] == limit) {
+            removed = true;
+            this->cars[i] = this->cars[--this->cars_size];
+            break;
         }
     }
-    else if (start < arrive) {
-        station* pointer = list;
-        while (pointer->km != start) pointer = pointer->next;
-        if (pointer->vehicle->autonomy >= arrive - start) {
-            printf("%i %i\n", start, arrive);
-            return;
-        }
-        while (pointer->km != arrive) pointer = pointer->next;
-        searchNode* headNode = malloc(sizeof(searchNode));
-        headNode->next = NULL;
-        headNode->km = pointer->km;
-        headNode->autonomy = pointer->vehicle->autonomy;
-        searchNode* actualNode = headNode;
-        pointer = pointer->pre;
-        while (1) {
-            if (pointer->vehicle->autonomy < actualNode->km - pointer->km) {
-                if (pointer->km == start) break;
-                pointer = pointer->pre;
+
+    // if we removed the max autonomy car, rearrange the array
+    if (removed && i == 0) {
+        qsort(this->cars, this->cars_size, sizeof(int), comp_cars);
+    }
+
+    return removed;
+}
+
+Path get_forward_path(unsigned int start, unsigned int end) {
+    unsigned int iterations = 1;
+    Hop *prev_layer_start = NULL;
+    Hop *curr_layer_start = NULL;
+    Hop *curr_layer_hop = NULL;
+    Hop *prev_layer_hop = NULL;
+
+    // traverse the list until you reach the current position
+    Station *curr_station = stations_list_start;
+    while (curr_station->pos < start)
+        curr_station = curr_station->next;
+
+    // create the first hop
+    prev_layer_hop = malloc(sizeof(Hop));
+    prev_layer_hop->station = curr_station;
+    prev_layer_hop->lat_l = NULL;
+    prev_layer_hop->lat_r = NULL;
+    prev_layer_hop->prev = NULL;
+    prev_layer_start = prev_layer_hop;
+
+    curr_station = curr_station->next;
+
+    // create the layer of reachable neighbors
+    bool found = false;
+    while (curr_station != NULL) {
+        if (curr_station->pos - prev_layer_hop->station->pos <=
+            (prev_layer_hop->station->cars_size > 0 ?
+            prev_layer_hop->station->cars[0] : 0)) {
+            if (curr_layer_start == NULL) {
+                curr_layer_hop = malloc(sizeof(Hop));
+                curr_layer_hop->lat_l = NULL;
+                curr_layer_hop->lat_r = NULL;
+                curr_layer_hop->station = curr_station;
+                curr_layer_hop->prev = prev_layer_hop;
+                curr_layer_start = curr_layer_hop;
+            } else {
+                curr_layer_hop->lat_r = malloc(sizeof(Hop));
+                Hop *temp_prev_hop = curr_layer_hop;
+                curr_layer_hop = curr_layer_hop->lat_r;
+                curr_layer_hop->lat_l = temp_prev_hop;
+                curr_layer_hop->lat_r = NULL;
+                curr_layer_hop->station = curr_station;
+                curr_layer_hop->prev = prev_layer_hop;
             }
-            else {
-                searchNode *newNode = malloc(sizeof(searchNode));
-                newNode->next = NULL;
-                newNode->km = pointer->km;
-                newNode->autonomy = pointer->vehicle->autonomy;
-                while (actualNode->next != NULL && newNode->autonomy >= actualNode->next->km - newNode->km) {
-                    searchNode *temp = actualNode;
-                    if (actualNode->next != NULL) actualNode = actualNode->next;
-                    else break;
-                    free(temp);
-                }
-                newNode->next = actualNode;
-                actualNode = newNode;
-                pointer = pointer->pre;
-                if (actualNode->km == start) break;
+            if (curr_layer_hop->station->pos == end) {
+                found = true;
+                iterations++;
+                break;
             }
-        }
-        if (actualNode->km == start) {
-            while (1) {
-                if (actualNode->km == arrive) {
-                    printf("%i\n", actualNode->km);
-                    free(actualNode);
+            curr_station = curr_station->next;
+        } else {
+            if (prev_layer_hop->lat_r != NULL) {
+                prev_layer_hop = prev_layer_hop->lat_r;
+            } else {
+                if (curr_layer_start == NULL)
                     break;
-                }
-                else {
-                    printf("%i ", actualNode->km);
-                }
-                searchNode* temp = actualNode;
-                actualNode = actualNode->next;
-                free(temp);
+                prev_layer_hop = curr_layer_start;
+                prev_layer_start = curr_layer_start;
+                curr_layer_start = NULL;
+                curr_layer_hop = NULL;
+                iterations++;
             }
         }
-        else {
-            while (1) {
-                searchNode* temp = actualNode;
-                if (actualNode->next == NULL)  {
-                    free(actualNode);
+    }
+
+    if (found) {
+        unsigned int *hops = malloc(iterations * sizeof(unsigned int));
+        for (unsigned int i = iterations; i > 0; i--) {
+            hops[i - 1] = curr_layer_hop->station->pos;
+            curr_layer_hop = curr_layer_hop->prev;
+        }
+        Path path;
+        path.stations = hops;
+        path.len = iterations;
+        cleanup_hops(curr_layer_start);
+        return path;
+    } else {
+        Path path;
+        path.stations = NULL;
+        path.len = 0;
+        cleanup_hops(curr_layer_start != NULL ? curr_layer_start
+                                              : prev_layer_start);
+        return path;
+    }
+}
+
+Path get_backward_path(unsigned int start, unsigned int end) {
+    unsigned int iterations = 1;
+    Hop *prev_layer_start = NULL;
+    Hop *curr_layer_start = NULL;
+    Hop *curr_layer_hop = NULL;
+    Hop *prev_layer_hop = NULL;
+
+    // traverse the list until you reach the current position
+    Station *curr_station = stations_list_end;
+    while (curr_station->pos > start)
+        curr_station = curr_station->prev;
+
+    // create the first hop
+    prev_layer_hop = malloc(sizeof(Hop));
+    prev_layer_hop->station = curr_station;
+    prev_layer_hop->lat_l = NULL;
+    prev_layer_hop->lat_r = NULL;
+    prev_layer_hop->prev = NULL;
+    prev_layer_start = prev_layer_hop;
+
+    curr_station = curr_station->prev;
+
+    // create the layer of reachable neighbors
+    bool found = false;
+    while (curr_station != NULL) {
+        if (prev_layer_hop->station->pos - curr_station->pos <=
+            (prev_layer_hop->station->cars_size > 0 ?
+            prev_layer_hop->station->cars[0] : 0)) {
+            if (curr_layer_start == NULL) {
+                curr_layer_hop = malloc(sizeof(Hop));
+                curr_layer_hop->lat_l = NULL;
+                curr_layer_hop->lat_r = NULL;
+                curr_layer_hop->station = curr_station;
+                curr_layer_hop->prev = prev_layer_hop;
+                curr_layer_start = curr_layer_hop;
+            } else {
+                curr_layer_hop->lat_r = malloc(sizeof(Hop));
+                Hop *temp_prev_hop = curr_layer_hop;
+                curr_layer_hop = curr_layer_hop->lat_r;
+                curr_layer_hop->lat_l = temp_prev_hop;
+                curr_layer_hop->lat_r = NULL;
+                curr_layer_hop->station = curr_station;
+                curr_layer_hop->prev = prev_layer_hop;
+                curr_layer_start = curr_layer_hop;
+            }
+            if (curr_layer_hop->station->pos == end) {
+                found = true;
+                iterations++;
+                break;
+            }
+            curr_station = curr_station->prev;
+        } else {
+            if (prev_layer_hop->lat_l != NULL) {
+                prev_layer_hop = prev_layer_hop->lat_l;
+            } else {
+                if (curr_layer_start == NULL)
                     break;
-                }
-                else actualNode = actualNode->next;
-                free(temp);
+                prev_layer_hop = curr_layer_start;
+                prev_layer_start = curr_layer_start;
+                curr_layer_start = NULL;
+                curr_layer_hop = NULL;
+                iterations++;
             }
-            fputs("nessun percorso\n", stdout);
         }
+    }
+
+    if (found) {
+        unsigned int *hops = malloc(iterations * sizeof(unsigned int));
+        for (unsigned int i = iterations; i > 0; i--) {
+            hops[i - 1] = curr_layer_hop->station->pos;
+            curr_layer_hop = curr_layer_hop->prev;
+        }
+        Path path;
+        path.stations = hops;
+        path.len = iterations;
+        cleanup_hops(curr_layer_start);
+        return path;
+    } else {
+        Path path;
+        path.stations = NULL;
+        path.len = 0;
+        cleanup_hops(curr_layer_start != NULL ? curr_layer_start
+                                              : prev_layer_start);
+        return path;
+    }
+}
+
+void cleanup_hops(Hop *base) {
+    while (base->lat_l != NULL) {
+        base = base->lat_l;
+    }
+    Hop *prev_layer = base->prev != NULL ? base->prev : NULL;
+    Hop *curr = base;
+    while (curr) {
+        Hop *to_free = curr;
+        if (curr->lat_r != NULL) {
+            curr = curr->lat_r;
+        } else {
+            curr = prev_layer;
+            prev_layer = prev_layer != NULL ? prev_layer->prev : NULL;
+            if (curr != NULL) {
+                while (curr->lat_l != NULL) {
+                    curr = curr->lat_l;
+                }
+            }
+        }
+        free(to_free);
     }
 }
