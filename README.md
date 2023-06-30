@@ -16,8 +16,8 @@ una stazione di servizio. Quindi, date due tappe consecutive s e t, t deve esser
 rispetto a s, e t deve essere raggiungibile usando uno dei veicoli disponibili in s.
 L’obiettivo del progetto è il seguente: data una coppia di stazioni, pianificare il percorso con il minor numero
 di tappe tra di esse. Nel caso siano presenti più percorsi con lo stesso numero minimo di tappe (cioè a pari merito),
-deve essere scelto il percorso che predilige le tappe con distanza più breve dall’inizio dell’autostrada. 
-<br>
+deve essere scelto il percorso che predilige le tappe con distanza più breve dall’inizio dell’autostrada.
+
 #### Comandi
 I comandi accettati dal programma, con i relativi attributi e output, sono i seguenti:
 | Comando            | Attributi                                                  | Output                            |
@@ -43,7 +43,7 @@ Il funzionamento di ogni comando con eventuali esempi è riportato di seguito:
   da inizio autostrada, separate da spazi e alla fine seguite da un a-capo. Devono essere incluse partenza e
   arrivo; se coincidono la stazione viene stampata una sola volta. Se il percorso non esiste, stampa nessun
   percorso. L’azione di pianificazione non altera le stazioni o il loro parco veicoli. Le stazioni date sono
-  sicuramente presenti.
+  sicuramente presenti. <br>
 
 #### Esempio
 Di seguito un esecuzione d'esempio della specifica richiesta:
