@@ -66,6 +66,3 @@ Di seguito un esecuzione d'esempio della specifica richiesta:
 | pianifica-percorso 50 20       | 50 30 20                                       | *Usa auto con autonomia 25 e 40*    |
 | aggiungi-auto 50 30            | aggiunta                                       | *Aggiunta auto autonomia 30*        |
 | pianifica-percorso 50 20       | 50 20                                          | *Usa auto con autonomia 30 e 40*    |
-
-## _Valutazione finale_
-La valutazione finale è risultata pari a 0/30
